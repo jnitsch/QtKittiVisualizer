@@ -1,1 +1,7 @@
 CMakeLists.txt.user
+*.autosave
+*.cbp
+Makefile
+cmake_install.cmake
+moc_*
+CMakeFiles/*
