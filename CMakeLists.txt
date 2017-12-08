@@ -37,7 +37,7 @@ include_directories(${Boost_COMPONENTS_INCLUDE_DIRS})
 link_directories(${Boost_COMPONENTS_LIBRARY_DIRS})
 add_definitions(${Boost_COMPONENTS_DEFINITIONS})
 
-find_package(PCL 1.8 REQUIRED)
+find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
