@@ -31,6 +31,8 @@ limitations under the License.
 
 #include "kitti-devkit-raw/tracklets.h"
 
+#include <QImage>
+
 typedef pcl::PointXYZI KittiPoint;
 typedef pcl::PointCloud<KittiPoint> KittiPointCloud;
 typedef Tracklets::tTracklet KittiTracklet;
@@ -44,6 +46,7 @@ public:
     KittiDataset(int dataset);
     int getNumberOfFrames();
     KittiPointCloud::Ptr getPointCloud(int frameId);
+    QImage getImage(int frameId);
     KittiPointCloud::Ptr getTrackletPointCloud(KittiPointCloud::Ptr& pointCloud, const KittiTracklet& tracklet, int frameId);
     Tracklets& getTracklets();
 

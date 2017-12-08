@@ -32,6 +32,8 @@ limitations under the License.
 
 #include <eigen3/Eigen/Core>
 
+ #include <QImageReader>
+
 KittiDataset::KittiDataset(int dataset) :
     _dataset(dataset),
     _number_of_frames(0)
@@ -54,6 +56,20 @@ KittiDataset::KittiDataset(int dataset) :
     {
         std::cerr << "Error in KittiDataset: No tracklets were found at "
                   << (KittiConfig::getTrackletsPath(_dataset)).string()
+                  << std::endl;
+        return;
+    }
+    if (!boost::filesystem::exists(KittiConfig::getImagePath(_dataset)))
+    {
+        std::cerr << "Error in KittiDataset: Data set path "
+                  << (KittiConfig::getImagePath(_dataset)).string()
+                  << " does not exist!" << std::endl;
+        return;
+    }
+    if (!boost::filesystem::exists(KittiConfig::getImagePath(_dataset, 0)))
+    {
+        std::cerr << "Error in KittiDataset: No image was found at "
+                  << (KittiConfig::getImagePath(_dataset, 0)).string()
                   << std::endl;
         return;
     }
@@ -83,6 +99,14 @@ KittiPointCloud::Ptr KittiDataset::getPointCloud(int frameId)
         file.close();
     }
     return cloud;
+}
+
+QImage KittiDataset::getImage(int frameId)
+{
+   std::string fileName = KittiConfig::getImagePath(_dataset, frameId).string();
+   QString qFileName = QString::fromStdString(fileName);
+   QImageReader imageReader(qFileName);
+   return imageReader.read();
 }
 
 KittiPointCloud::Ptr KittiDataset::getTrackletPointCloud(KittiPointCloud::Ptr& pointCloud, const KittiTracklet& tracklet, int frameId)
