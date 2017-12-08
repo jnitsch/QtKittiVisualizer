@@ -38,6 +38,7 @@ limitations under the License.
 #include <pcl/point_types.h>
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <Eigen/Geometry>
 
 #include <KittiConfig.h>
 #include <KittiDataset.h>
@@ -68,7 +69,7 @@ KittiVisualizerQt::KittiVisualizerQt(QWidget *parent, int argc, char** argv) :
     ui->setupUi(this);
     ui->qvtkWidget_pclViewer->SetRenderWindow(pclVisualizer->getRenderWindow());
     pclVisualizer->setupInteractor(ui->qvtkWidget_pclViewer->GetInteractor(), ui->qvtkWidget_pclViewer->GetRenderWindow());
-    pclVisualizer->setBackgroundColor(0, 0, 0);
+    pclVisualizer->setBackgroundColor(255 ,255, 255);
     pclVisualizer->addCoordinateSystem(1.0);
     pclVisualizer->registerKeyboardCallback(&KittiVisualizerQt::keyboardEventOccurred, *this, 0);
     this->setWindowTitle("Qt KITTI Visualizer");
@@ -87,6 +88,9 @@ KittiVisualizerQt::KittiVisualizerQt(QWidget *parent, int argc, char** argv) :
         showTrackletPoints();
     if (trackletInCenterVisible)
         showTrackletInCenter();
+
+    loadImage();
+    showImage();
 
     ui->slider_dataSet->setRange(0, KittiConfig::availableDatasets.size() - 1);
     ui->slider_dataSet->setValue(dataset_index);
@@ -221,6 +225,9 @@ void KittiVisualizerQt::newDatasetRequested(int value)
     if (trackletInCenterVisible)
         showTrackletInCenter();
 
+    loadImage();
+    showImage();
+
     ui->slider_frame->setRange(0, dataset->getNumberOfFrames() - 1);
     ui->slider_frame->setValue(frame_index);
     if (availableTracklets.size() != 0)
@@ -272,6 +279,9 @@ void KittiVisualizerQt::newFrameRequested(int value)
         tracklet_index = 0;
     if (trackletInCenterVisible)
         showTrackletInCenter();
+
+    loadImage();
+    showImage();
 
     if (availableTracklets.size() != 0)
         ui->slider_tracklet->setRange(0, availableTracklets.size() - 1);
@@ -353,7 +363,7 @@ void KittiVisualizerQt::loadPointCloud()
 
 void KittiVisualizerQt::showPointCloud()
 {
-    KittiPointCloudColorHandlerCustom colorHandler(pointCloud, 255, 255, 255);
+    KittiPointCloudColorHandlerCustom colorHandler(pointCloud, 0, 0, 0);
     pclVisualizer->addPointCloud<KittiPoint>(pointCloud, colorHandler, "point_cloud");
 }
 
@@ -539,6 +549,16 @@ void KittiVisualizerQt::showTrackletInCenter()
         // Add the centered tracklet point cloud to the visualizer
         pclVisualizer->addPointCloud<KittiPoint>(cloudOut, colorHandler, "centered_tracklet");
     }
+}
+
+void KittiVisualizerQt::loadImage()
+{
+    image = dataset->getImage(frame_index);
+}
+
+void KittiVisualizerQt::showImage()
+{
+    ui->label->setPixmap(QPixmap::fromImage(image));
 }
 
 void KittiVisualizerQt::hideTrackletInCenter()

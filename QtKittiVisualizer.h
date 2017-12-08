@@ -111,6 +111,10 @@ private:
     void hideTrackletInCenter();
     bool trackletInCenterVisible;
 
+    void loadImage();
+    void showImage();
+    QImage image;
+
     void setFrameNumber(int frameNumber);
 
     void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event,
