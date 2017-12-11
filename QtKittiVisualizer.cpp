@@ -26,6 +26,7 @@ limitations under the License.
 #include <QMainWindow>
 #include <QSlider>
 #include <QWidget>
+#include <QPainter>
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
@@ -57,7 +58,8 @@ KittiVisualizerQt::KittiVisualizerQt(QWidget *parent, int argc, char** argv) :
     pointCloudVisible(true),
     trackletBoundingBoxesVisible(true),
     trackletPointsVisible(true),
-    trackletInCenterVisible(true)
+    trackletInCenterVisible(true),
+    imageBoundingBoxesVisible(true)
 {
     int invalidOptions = parseCommandLineOptions(argc, argv);
     if (invalidOptions)
@@ -92,6 +94,9 @@ KittiVisualizerQt::KittiVisualizerQt(QWidget *parent, int argc, char** argv) :
     loadImage();
     showImage();
 
+    dataset->getCalibration();
+
+
     ui->slider_dataSet->setRange(0, KittiConfig::availableDatasets.size() - 1);
     ui->slider_dataSet->setValue(dataset_index);
     ui->slider_frame->setRange(0, dataset->getNumberOfFrames() - 1);
@@ -114,6 +119,7 @@ KittiVisualizerQt::KittiVisualizerQt(QWidget *parent, int argc, char** argv) :
     connect(ui->checkBox_showTrackletBoundingBoxes, SIGNAL (toggled(bool)), this, SLOT (showTrackletBoundingBoxesToggled(bool)));
     connect(ui->checkBox_showTrackletPointClouds,   SIGNAL (toggled(bool)), this, SLOT (showTrackletPointCloudsToggled(bool)));
     connect(ui->checkBox_showTrackletInCenter,      SIGNAL (toggled(bool)), this, SLOT (showTrackletInCenterToggled(bool)));
+    connect(ui->checkBox_showBBImage,      SIGNAL (toggled(bool)), this, SLOT (showImageBoundingBoxesToggled(bool)));
 }
 
 KittiVisualizerQt::~KittiVisualizerQt()
@@ -226,7 +232,12 @@ void KittiVisualizerQt::newDatasetRequested(int value)
         showTrackletInCenter();
 
     loadImage();
-    showImage();
+    if(imageBoundingBoxesVisible)
+        showImageBoundingBoxesToggled(true);
+    else
+        showImage();
+
+    dataset->getCalibration();
 
     ui->slider_frame->setRange(0, dataset->getNumberOfFrames() - 1);
     ui->slider_frame->setValue(frame_index);
@@ -281,7 +292,13 @@ void KittiVisualizerQt::newFrameRequested(int value)
         showTrackletInCenter();
 
     loadImage();
-    showImage();
+
+    if(imageBoundingBoxesVisible)
+        showImageBoundingBoxesToggled(true);
+    else
+        showImage();
+
+     dataset->getCalibration();
 
     if (availableTracklets.size() != 0)
         ui->slider_tracklet->setRange(0, availableTracklets.size() - 1);
@@ -354,6 +371,62 @@ void KittiVisualizerQt::showTrackletInCenterToggled(bool value)
         hideTrackletInCenter();
     }
     ui->qvtkWidget_pclViewer->update();
+}
+
+void KittiVisualizerQt::showImageBoundingBoxesToggled(bool value)
+{
+    imageBoundingBoxesVisible = value;
+    if(imageBoundingBoxesVisible)
+    {
+        loadImage();
+        for (int i = 0; i < availableTracklets.size(); ++i)
+        {
+            const KittiTracklet& tracklet = availableTracklets.at(i);
+
+            int pose_number = frame_index - tracklet.first_frame;
+            std::vector<Eigen::Vector4f> boxCornersVelo = (dataset->getTrackletBoundingBoxes(tracklet, frame_index))[pose_number];
+
+            std::vector<Eigen::Vector3f> boxCornersImg;
+
+            float minX = 5000;
+            float minY = 5000;
+            float minZ = 5000;
+            float maxX = 0;
+            float maxY = 0;
+            float maxZ = 0;
+
+            for(int cornerId = 0; cornerId < boxCornersVelo.size(); cornerId++)
+            {
+                Eigen::Vector3f cornerImg = dataset->transformPointFromVeloToImage(boxCornersVelo[cornerId]);
+                if (cornerImg(0) > maxX)
+                    maxX = cornerImg(0);
+                if(cornerImg(1) > maxY)
+                    maxY = cornerImg(1);
+                if(cornerImg(2) > maxZ)
+                    maxZ = cornerImg(2);
+                if (cornerImg(0) < minX)
+                    minX = cornerImg(0);
+                if(cornerImg(1) < minY)
+                    minY = cornerImg(1);
+                if(cornerImg(2) < minZ)
+                    minZ = cornerImg(2);
+                boxCornersImg.push_back(cornerImg);
+            }
+
+            int r, g, b = 0;
+            getTrackletColor(tracklet, r, g, b);
+
+            QPainter qPainter(&image);
+            qPainter.setBrush(Qt::NoBrush);
+            qPainter.setPen(QColor(r,g,b));
+            qPainter.drawRect(minX, minY, maxX-minX, maxY - minY);
+        }
+    }
+    else
+    {
+        loadImage();
+    }
+    showImage();
 }
 
 void KittiVisualizerQt::loadPointCloud()
@@ -486,7 +559,7 @@ void KittiVisualizerQt::loadTrackletPoints()
         Eigen::Vector3f transformOffset;
         transformOffset[0] = 0.0f;
         transformOffset[1] = 0.0f;
-        transformOffset[2] = 6.0f;
+        transformOffset[2] = 0.0f;
         pcl::transformPointCloud(*trackletPointCloud, *trackletPointCloudTransformed, transformOffset, Eigen::Quaternionf::Identity());
 
         // Store the tracklet point cloud

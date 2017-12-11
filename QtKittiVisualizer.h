@@ -68,6 +68,7 @@ public slots:
     void showTrackletBoundingBoxesToggled(bool value);
     void showTrackletPointCloudsToggled(bool value);
     void showTrackletInCenterToggled(bool value);
+    void showImageBoundingBoxesToggled(bool value);
 
 private:
 
@@ -113,6 +114,7 @@ private:
 
     void loadImage();
     void showImage();
+    bool imageBoundingBoxesVisible;
     QImage image;
 
     void setFrameNumber(int frameNumber);

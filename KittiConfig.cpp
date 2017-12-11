@@ -34,6 +34,7 @@ std::string KittiConfig::tracklets_directory = ".";
 std::string KittiConfig::tracklets_file_name = "tracklet_labels.xml";
 std::string KittiConfig::image_directory = "image_02/data";
 std::string KittiConfig::image_file_template = "%|010|.png";
+std::string KittiConfig::camera_to_velodyne_calibration = "calib_velo_to_cam.txt";
 
 const std::vector<int> KittiConfig::availableDatasets = KittiConfig::initAvailableDatasets();
 
@@ -76,6 +77,13 @@ boost::filesystem::path KittiConfig::getImagePath(int dataset, int frameId)
 {
     return getImagePath(dataset)
             / (boost::format(image_file_template) % frameId).str()
+            ;
+}
+
+boost::filesystem::path KittiConfig::getVeloToCameraCalibrationPath(int dataset)
+{
+    return boost::filesystem::path(data_directory)
+            / camera_to_velodyne_calibration
             ;
 }
 

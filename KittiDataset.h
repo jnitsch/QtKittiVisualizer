@@ -47,13 +47,17 @@ public:
     int getNumberOfFrames();
     KittiPointCloud::Ptr getPointCloud(int frameId);
     QImage getImage(int frameId);
+    void getCalibration();
     KittiPointCloud::Ptr getTrackletPointCloud(KittiPointCloud::Ptr& pointCloud, const KittiTracklet& tracklet, int frameId);
+    std::vector<std::vector<Eigen::Vector4f> > getTrackletBoundingBoxes(const KittiTracklet& tracklet, int frameId);
     Tracklets& getTracklets();
 
     static int getLabel(const char* labelString);
     static void getColor(const char* labelString, int& r, int& g, int& b);
     static void getColor(int label, int& r, int& g, int& b);
     static std::string getLabelString(int label);
+
+    Eigen::Vector3f transformPointFromVeloToImage(const Eigen::Vector4f& point);
 
 private:
 
@@ -64,6 +68,9 @@ private:
 
     Tracklets _tracklets;
     void initTracklets();
+
+    Eigen::Matrix4f _camera0UnrectToVelodyne;
+
 };
 
 #endif // KITTIDATASET_H

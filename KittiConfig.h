@@ -54,6 +54,7 @@ public:
     static boost::filesystem::path getTrackletsPath(int dataset);
     static boost::filesystem::path getImagePath(int dataset);
     static boost::filesystem::path getImagePath(int dataset, int frameId);
+    static boost::filesystem::path getVeloToCameraCalibrationPath(int dataset);
 
     /** Contains the numbers of data sets available from your data set folder */
     static const std::vector<int> availableDatasets;
@@ -73,6 +74,7 @@ private:
     static std::string tracklets_file_name;
     static std::string image_directory;
     static std::string image_file_template;
+    static std::string camera_to_velodyne_calibration;
 
     static std::vector<int> initAvailableDatasets();
 };

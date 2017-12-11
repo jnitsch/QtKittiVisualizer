@@ -20,6 +20,7 @@ limitations under the License.
 
 #include <string>
 #include <vector>
+#include <iterator>
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
@@ -73,6 +74,13 @@ KittiDataset::KittiDataset(int dataset) :
                   << std::endl;
         return;
     }
+    if (!boost::filesystem::exists(KittiConfig::getVeloToCameraCalibrationPath(_dataset)))
+    {
+        std::cerr << "Error in KittiDataset: Data set path "
+                  << (KittiConfig::getImagePath(_dataset)).string()
+                  << " does not exist!" << std::endl;
+        return;
+    }
 
     initNumberOfFrames();
     initTracklets();
@@ -107,6 +115,131 @@ QImage KittiDataset::getImage(int frameId)
    QString qFileName = QString::fromStdString(fileName);
    QImageReader imageReader(qFileName);
    return imageReader.read();
+}
+
+void KittiDataset::getCalibration()
+{
+    std::string data;
+    std::ifstream file(KittiConfig::getVeloToCameraCalibrationPath(_dataset).c_str());
+    int lineNumber = 0;
+    Eigen::Matrix3f rotation;
+    Eigen::Vector4f translation;
+    if(file.good()){
+         std::string data;
+
+         while( std::getline( file, data ) )
+         {
+             if(lineNumber == 1)
+             {
+                 // rotationmatrix
+                 std::stringstream ss(data);
+                 std::istream_iterator<std::string> begin(ss);
+                 std::istream_iterator<std::string> end;
+                 std::vector<std::string> tokens(begin, end);
+
+                 std::stringstream conversionToFloat;
+                 conversionToFloat.str(tokens[1]);
+                 conversionToFloat >> rotation(0, 0);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[2]);
+                 conversionToFloat >> rotation(0, 1);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[3]);
+                 conversionToFloat >> rotation(0, 2);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[4]);
+                 conversionToFloat >> rotation(1, 0);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[5]);
+                 conversionToFloat >> rotation(1, 1);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[6]);
+                 conversionToFloat >> rotation(1, 2);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[7]);
+                 conversionToFloat >> rotation(2, 0);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[8]);
+                 conversionToFloat >> rotation(2, 1);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[9]);
+                 conversionToFloat >> rotation(2, 2);
+                 conversionToFloat.clear();
+             }
+             else if(lineNumber == 2)
+             {
+                 // translation vector
+                 std::stringstream ss(data);
+                 std::istream_iterator<std::string> begin(ss);
+                 std::istream_iterator<std::string> end;
+                 std::vector<std::string> tokens(begin, end);
+
+                 std::stringstream conversionToFloat;
+                 conversionToFloat.str(tokens[1]);
+                 conversionToFloat >> translation(0);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[2]);
+                 conversionToFloat >> translation(1);
+                 conversionToFloat.clear();
+
+                 conversionToFloat.str(tokens[3]);
+                 conversionToFloat >> translation(2);
+                 conversionToFloat.clear();
+
+                 translation(3) = 1.0;
+             }
+             lineNumber++;
+         }
+
+        }
+    file.close();
+
+    _camera0UnrectToVelodyne.setIdentity();
+    _camera0UnrectToVelodyne.block<3,3>(0,0) = rotation;
+    _camera0UnrectToVelodyne.rightCols<1>() = translation;
+
+}
+
+std::vector<std::vector<Eigen::Vector4f> > KittiDataset::getTrackletBoundingBoxes(const KittiTracklet& tracklet, int frameId)
+{
+    std::vector<std::vector<Eigen::Vector4f> > boundingBoxes;
+
+    double d = std::sqrt(std::pow(tracklet.l, 2) + std::pow(tracklet.w, 2)) / 2.0;
+
+    for(int pose_number = 0; pose_number < tracklet.poses.size(); pose_number++)
+    {
+        std::vector<Eigen::Vector4f> poses;
+        Tracklets::tPose tpose = tracklet.poses.at(pose_number);
+        Eigen::Vector4f point1((float) tpose.tx + d * std::sin((float) tpose.rz),  (float) tpose.ty + d * std::cos((float) tpose.rz), (float) tpose.tz + tracklet.h, 1);
+        Eigen::Vector4f point2((float) tpose.tx - d * std::sin((float) tpose.rz),  (float) tpose.ty + d * std::cos((float) tpose.rz), (float) tpose.tz + tracklet.h, 1);
+        Eigen::Vector4f point3((float) tpose.tx - d * std::sin((float) tpose.rz),  (float) tpose.ty - d * std::cos((float) tpose.rz), (float) tpose.tz + tracklet.h, 1);
+        Eigen::Vector4f point4((float) tpose.tx + d * std::sin((float) tpose.rz),  (float) tpose.ty - d * std::cos((float) tpose.rz), (float) tpose.tz + tracklet.h, 1);
+        Eigen::Vector4f point5((float) tpose.tx + d * std::sin((float) tpose.rz),  (float) tpose.ty + d * std::cos((float) tpose.rz), (float) tpose.tz, 1);
+        Eigen::Vector4f point6((float) tpose.tx - d * std::sin((float) tpose.rz),  (float) tpose.ty + d * std::cos((float) tpose.rz), (float) tpose.tz, 1);
+        Eigen::Vector4f point7((float) tpose.tx - d * std::sin((float) tpose.rz),  (float) tpose.ty - d * std::cos((float) tpose.rz), (float) tpose.tz, 1);
+        Eigen::Vector4f point8((float) tpose.tx + d * std::sin((float) tpose.rz),  (float) tpose.ty - d * std::cos((float) tpose.rz), (float) tpose.tz, 1);
+
+        poses.push_back(point1);
+        poses.push_back(point2);
+        poses.push_back(point3);
+        poses.push_back(point4);
+        poses.push_back(point5);
+        poses.push_back(point6);
+        poses.push_back(point7);
+        poses.push_back(point8);
+        boundingBoxes.push_back(poses);
+    }
+
+    return boundingBoxes;
 }
 
 KittiPointCloud::Ptr KittiDataset::getTrackletPointCloud(KittiPointCloud::Ptr& pointCloud, const KittiTracklet& tracklet, int frameId)
@@ -327,6 +460,62 @@ void KittiDataset::initTracklets()
 {
     boost::filesystem::path trackletsPath = KittiConfig::getTrackletsPath(_dataset);
     _tracklets.loadFromFile(trackletsPath.string());
+}
+
+Eigen::Vector3f KittiDataset::transformPointFromVeloToImage(const Eigen::Vector4f& point){
+    Eigen::Matrix4f R_rect0;
+    R_rect0.setIdentity(4,4);
+
+    R_rect0(0,0) = 9.998817e-01;
+    R_rect0(0,1) = 9.837760e-03;
+    R_rect0(0,2) =  -7.445048e-03;
+    R_rect0(1,0) = -9.869795e-03;
+    R_rect0(1,1) = 9.999421e-01;
+    R_rect0(1,2) =  -4.278459e-03;
+    R_rect0(2,0) = 7.402527e-03;
+    R_rect0(2,1) = 4.351614e-03;
+    R_rect0(2,2) =  9.999631e-01;
+
+    Eigen::Matrix4f R_rect2;
+    R_rect2.setIdentity(4,4);
+
+    R_rect2(0,0) = 9.998817e-01;
+    R_rect2(0,1) = 1.511453e-02;
+    R_rect2(0,2) =  -2.841595e-03;
+    R_rect2(1,0) = -1.511724e-02;
+    R_rect2(1,1) = 9.998853e-01;
+    R_rect2(1,2) = -9.338510e-04;
+    R_rect2(2,0) = 2.827154e-03;
+    R_rect2(2,1) = 9.766976e-04;
+    R_rect2(2,2) =  9.999955e-01;
+
+    Eigen::MatrixXf P_rect2(3,4);
+    P_rect2(0,0) = 7.215377e+02;
+    P_rect2(0,1) = 0;
+    P_rect2(0,2) = 6.095593e+02;
+    P_rect2(0,3) = 4.485728e+01;
+    P_rect2(1,0) = 0.000000e+00;
+    P_rect2(1,1) = 7.215377e+02;
+    P_rect2(1,2) = 1.728540e+02;
+    P_rect2(1,3) = 2.163791e-01;
+    P_rect2(2,0) = 0.000000e+00;
+    P_rect2(2,1) = 0.000000e+00;
+    P_rect2(2,2) = 1.000000e+00;
+    P_rect2(2,3) = 2.745884e-03;
+
+    Eigen::Matrix4f T0;
+    T0.setIdentity(4,4);
+    T0(0,3) = P_rect2(0,3) / P_rect2(0,0);
+
+    Eigen::Matrix4f cameraToVelodyne = T0 * R_rect0 * _camera0UnrectToVelodyne;
+
+    Eigen::Vector3f pointImage = P_rect2 * R_rect2 * cameraToVelodyne * point;
+    pointImage /= pointImage(2);
+
+    Eigen::Vector4f pointCameraCoordinates = R_rect2 * cameraToVelodyne * point;
+
+    return pointImage;
+
 }
 
 //#undef DEBUG_OUTPUT_ENABLED
